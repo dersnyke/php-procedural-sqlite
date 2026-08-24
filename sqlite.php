@@ -1,11 +1,17 @@
 <?php
 
 /**
- * Procedural, mysqli-inspired API for PHP's SQLite3 extension.
+ * php-procedural-sqlite
+ * =====================
+ * Full Edition — a procedural, mysqli-inspired API for PHP's SQLite3 extension.
+ *
+ * Project:       https://github.com/dersnyke/php-procedural-sqlite
+ * Documentation: https://github.com/dersnyke/php-procedural-sqlite#readme
+ * Edition:       Full (90 public sqlite_* functions)
  *
  * Include this file with require_once and use only the sqlite_* functions.
- * The handle classes below are implementation details and intentionally expose
- * no public database methods.
+ * The handle classes below are internal implementation details and expose no
+ * public database methods.
  */
 
 if (!defined('SQLITE_PROCEDURAL_VERSION')) {

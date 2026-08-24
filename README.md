@@ -1,26 +1,22 @@
-# SQLite prozedural
+# php-procedural-sqlite
 
-## Einführung
+A procedural, mysqli-inspired API for PHP's SQLite3 extension. Application code uses functions such as `sqlite_connect()`, `sqlite_query()`, `sqlite_fetch_assoc()`, and `sqlite_stmt_execute()` without calling object methods.
 
-`sqlite.php` stellt eine prozedurale, an `mysqli` angelehnte API für SQLite bereit. Der aufrufende Code verwendet ausschließlich Funktionen wie `sqlite_connect()`, `sqlite_query()`, `sqlite_fetch_assoc()` und `sqlite_stmt_execute()`. Intern verwendet die Bibliothek die PHP-Erweiterung `SQLite3`.
+This is the **Full Edition**, providing 90 public functions. Applications that only require CRUD, prepared statements, and basic transactions can use the standalone [Lite Edition](README-lite.md), which provides 32 functions. The editions must not be loaded together because they intentionally use the same function names.
 
-Für Anwendungen, die nur CRUD, Prepared Statements und Transaktionen benötigen, steht außerdem die eigenständige [Lite-Ausgabe](README-lite.md) mit 32 statt 90 öffentlichen Funktionen bereit. Beide Ausgaben dürfen wegen ihrer identischen Funktionsnamen nicht gleichzeitig eingebunden werden.
+Results are fully buffered to support mysqli-style features such as `sqlite_num_rows()` and `sqlite_data_seek()`. Connection, statement, and result handles are opaque values; their internal classes are not public API.
 
-Die API puffert Ergebnismengen vollständig. Dadurch stehen mysqli-typische Funktionen wie `sqlite_num_rows()` und `sqlite_data_seek()` auch für SQLite zur Verfügung. Verbindungs-, Statement- und Result-Handles sind undurchsichtige Werte; ihre internen Klassen gehören nicht zur öffentlichen API.
+## AI attribution
 
-## KI-Attribution
+> **This project is 100% AI-generated.**
 
-> **Dieses Projekt ist zu 100 % KI-generiert.**
+All PHP source code and documentation in this repository were generated with [OpenAI Codex](https://developers.openai.com/codex), an AI coding agent by OpenAI. A human supplied the requirements and directed the work; the resulting project files were generated entirely by AI.
 
-Der gesamte PHP-Quellcode und die vollständige Dokumentation dieses Repositorys wurden mit [OpenAI Codex](https://developers.openai.com/codex), einem KI-Coding-Agenten von OpenAI, erzeugt. Die Anforderungen und die fachliche Steuerung wurden von einem Menschen vorgegeben; die daraus entstandenen Projektdateien wurden vollständig durch die KI generiert.
+## Requirements
 
-*All source code and documentation in this repository were generated entirely with OpenAI Codex.*
-
-## Anforderungen
-
-- PHP 8.2 oder neuer
-- aktivierte PHP-Erweiterung `sqlite3`
-- Schreibrechte auf dem Verzeichnis der Datenbankdatei, sofern keine reine In-Memory-Datenbank verwendet wird
+- PHP 8.2 or newer
+- The PHP `sqlite3` extension
+- Write permission for the database directory unless an in-memory database is used
 
 ## Installation
 
@@ -28,23 +24,17 @@ Der gesamte PHP-Quellcode und die vollständige Dokumentation dieses Repositorys
 require_once __DIR__ . '/sqlite/sqlite.php';
 ```
 
-Die Datei soll mit `require_once` eingebunden werden. Es sind weder Composer noch weitere Dateien erforderlich.
+Use `require_once`. Composer and additional runtime files are not required.
 
-## Schnellstart
+## Quick start
 
 ```php
 <?php
 
 require_once __DIR__ . '/sqlite/sqlite.php';
-
 $db = sqlite_connect(__DIR__ . '/app.sqlite');
 
-sqlite_execute($db, <<<'SQL'
-    CREATE TABLE IF NOT EXISTS users (
-        id   INTEGER PRIMARY KEY,
-        name TEXT NOT NULL
-    )
-SQL);
+sqlite_execute($db, 'CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT NOT NULL)');
 
 $stmt = sqlite_prepare($db, 'INSERT INTO users (name) VALUES (?)');
 $name = 'Ada';
@@ -61,53 +51,30 @@ sqlite_stmt_close($stmt);
 sqlite_close($db);
 ```
 
-Benutzereingaben sollen bevorzugt über Prepared Statements gebunden werden. `sqlite_real_escape_string()` ist nur für Fälle vorgesehen, in denen Parameterbindung technisch nicht möglich ist.
+Bind untrusted values with prepared statements. Use `sqlite_real_escape_string()` only where binding is technically impossible.
 
-## Vordefinierte Konstanten
+## Constants
 
-### Fetch-Modi
-
-| Konstante | Beschreibung |
+| Group | Constants |
 |---|---|
-| `SQLITE_ASSOC` | Ergebniszeile mit Spaltennamen als Schlüssel |
-| `SQLITE_NUM` | Ergebniszeile mit numerischen Schlüsseln |
-| `SQLITE_BOTH` | Beide Schlüsselarten |
+| Fetch modes | `SQLITE_ASSOC`, `SQLITE_NUM`, `SQLITE_BOTH` |
+| Report modes | `SQLITE_REPORT_OFF`, `SQLITE_REPORT_ERROR`, `SQLITE_REPORT_STRICT` |
+| Transactions | `SQLITE_TRANS_DEFERRED`, `SQLITE_TRANS_IMMEDIATE`, `SQLITE_TRANS_EXCLUSIVE` |
+| Value types | `SQLITE_TYPE_INTEGER`, `SQLITE_TYPE_FLOAT`, `SQLITE_TYPE_TEXT`, `SQLITE_TYPE_BLOB`, `SQLITE_TYPE_NULL` |
 
-### Report-Modi
+The default report mode is `SQLITE_REPORT_ERROR | SQLITE_REPORT_STRICT`, matching modern mysqli behavior. Native constants such as `SQLITE3_OPEN_READONLY`, `SQLITE3_OPEN_READWRITE`, `SQLITE3_OPEN_CREATE`, and `SQLITE3_DETERMINISTIC` can be used directly.
 
-| Konstante | Beschreibung |
-|---|---|
-| `SQLITE_REPORT_OFF` | Keine Warnungen oder Exceptions |
-| `SQLITE_REPORT_ERROR` | Fehler als PHP-Warnung melden |
-| `SQLITE_REPORT_STRICT` | Fehler als `SQLiteProceduralException` auslösen |
+## Differences from mysqli
 
-Der Standard ist `SQLITE_REPORT_ERROR | SQLITE_REPORT_STRICT`, entsprechend dem modernen mysqli-Verhalten.
+- SQLite opens a filename instead of connecting to a database server.
+- SQLite has no selectable connection charset; this API reports `UTF-8`.
+- Result sets are fully buffered in PHP memory.
+- `sqlite_multi_query()` splits ordinary statements at semicolons outside strings and comments. Execute trigger definitions containing semicolons with `sqlite_execute()` as one statement.
+- Compatibility parameters unsupported by SQLite are accepted but ignored where documented.
+- Unsupported MySQL field metadata contains neutral values.
+- `sqlite_thread_id()` returns `0` because SQLite has no server thread ID.
 
-### Transaktionsmodi
-
-| Konstante | Beschreibung |
-|---|---|
-| `SQLITE_TRANS_DEFERRED` | Sperren erst beim ersten Zugriff anfordern |
-| `SQLITE_TRANS_IMMEDIATE` | Sofort eine reservierte Schreibsperre anfordern |
-| `SQLITE_TRANS_EXCLUSIVE` | Sofort eine exklusive Transaktion beginnen |
-
-### SQLite-Datentypen
-
-`SQLITE_TYPE_INTEGER`, `SQLITE_TYPE_FLOAT`, `SQLITE_TYPE_TEXT`, `SQLITE_TYPE_BLOB` und `SQLITE_TYPE_NULL` entsprechen den nativen `SQLITE3_*`-Typkonstanten.
-
-Die nativen Konstanten `SQLITE3_OPEN_READONLY`, `SQLITE3_OPEN_READWRITE`, `SQLITE3_OPEN_CREATE`, `SQLITE3_DETERMINISTIC` und weitere Konstanten der `SQLite3`-Erweiterung können direkt verwendet werden.
-
-## Unterschiede zu mysqli
-
-- SQLite arbeitet mit einem Dateinamen statt mit Host, Benutzer, Passwort und Server-Datenbank.
-- SQLite kennt nur UTF-8 und UTF-16; diese API liefert als Verbindungszeichensatz immer `UTF-8`.
-- Ergebnismengen werden vollständig im Arbeitsspeicher gepuffert.
-- `sqlite_multi_query()` trennt normale SQL-Anweisungen an Semikolons außerhalb von Strings und Kommentaren. Trigger-Definitionen mit Semikolons im `BEGIN … END`-Block sollten als einzelne Anweisung mit `sqlite_execute()` ausgeführt werden.
-- `sqlite_commit()` und `sqlite_rollback()` akzeptieren die mysqli-kompatiblen Parameter `flags` und `name`; SQLite wertet sie nicht aus.
-- Metadaten wie Ursprungstabelle, Feldlänge und Zeichensatznummer existieren in SQLite nicht. Die entsprechenden Felder der von `sqlite_fetch_field*()` gelieferten Objekte enthalten neutrale Werte.
-- `sqlite_thread_id()` liefert `0`, da SQLite keine Server-Thread-ID besitzt.
-
-## Verbindungen und Fehlerbehandlung
+## Connections and errors
 
 ### sqlite_report
 
@@ -115,29 +82,23 @@ Die nativen Konstanten `SQLITE3_OPEN_READONLY`, `SQLITE3_OPEN_READWRITE`, `SQLIT
 sqlite_report(int $flags): bool
 ```
 
-Legt den globalen Fehlermodus fest. `flags` ist eine bitweise Kombination aus `SQLITE_REPORT_ERROR` und `SQLITE_REPORT_STRICT`; `SQLITE_REPORT_OFF` deaktiviert beide. Gibt immer `true` zurück. Ungültige Bits lösen `ValueError` aus.
+Sets the global report mode. `flags` is a bitwise combination of the report constants. Returns `true`; invalid bits throw `ValueError`.
+
+- **Parameters:** `flags` selects warnings and/or strict exceptions; pass `SQLITE_REPORT_OFF` for return-value-only handling.
+- **Returns:** Always `true` for a valid flag set.
+- **Errors:** Throws `ValueError` if unknown flag bits are present.
 
 ### sqlite_connect
 
 ```php
-sqlite_connect(
-    string $filename,
-    int $flags = SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE,
-    string $encryptionKey = ''
-): SQLiteProceduralConnection|false
+sqlite_connect(string $filename, int $flags = SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE, string $encryptionKey = ''): SQLiteProceduralConnection|false
 ```
 
-Öffnet eine SQLite-Datenbank.
+Opens `filename`, or `:memory:`. `flags` contains native `SQLITE3_OPEN_*` values. `encryptionKey` applies only to suitably compiled builds. Returns an opaque connection handle, or `false`/throws on failure.
 
-**Parameter**
-
-- `filename` — Pfad zur Datenbankdatei oder `:memory:` für eine flüchtige In-Memory-Datenbank.
-- `flags` — Bitmaske aus `SQLITE3_OPEN_READONLY`, `SQLITE3_OPEN_READWRITE` und `SQLITE3_OPEN_CREATE`.
-- `encryptionKey` — Schlüssel für entsprechend kompilierte SQLite-Erweiterungen; die Standard-Erweiterung ignoriert ihn.
-
-**Rückgabewerte**
-
-Gibt ein Verbindungshandle zurück. Bei einem Fehler wird abhängig vom Report-Modus `false` zurückgegeben oder eine Exception ausgelöst.
+- **Parameters:** `filename` is the database path; `flags` selects read-only, read/write, and create behavior; `encryptionKey` is passed to the native driver.
+- **Returns:** `SQLiteProceduralConnection` on success or `false` when strict reporting is disabled.
+- **Errors:** Connection failures update `sqlite_connect_errno()` and `sqlite_connect_error()` and follow the active report mode.
 
 ### sqlite_connect_errno
 
@@ -145,7 +106,10 @@ Gibt ein Verbindungshandle zurück. Bei einem Fehler wird abhängig vom Report-M
 sqlite_connect_errno(): int
 ```
 
-Gibt den Fehlercode des letzten fehlgeschlagenen Verbindungsversuchs zurück, andernfalls `0`.
+Returns the error code from the latest failed connection attempt, or `0`.
+
+- **Parameters:** None.
+- **Returns:** The last connection error code as an integer.
 
 ### sqlite_connect_error
 
@@ -153,7 +117,10 @@ Gibt den Fehlercode des letzten fehlgeschlagenen Verbindungsversuchs zurück, an
 sqlite_connect_error(): ?string
 ```
 
-Gibt die Fehlermeldung des letzten fehlgeschlagenen Verbindungsversuchs oder `null` zurück.
+Returns the message from the latest failed connection attempt, or `null`.
+
+- **Parameters:** None.
+- **Returns:** The last connection error message, or `null` when no connection error is stored.
 
 ### sqlite_close
 
@@ -161,7 +128,10 @@ Gibt die Fehlermeldung des letzten fehlgeschlagenen Verbindungsversuchs oder `nu
 sqlite_close(SQLiteProceduralConnection $connection): bool
 ```
 
-Schließt `connection`. Eine noch aktive Transaktion wird vorher zurückgerollt. Wiederholtes Schließen desselben Handles liefert `true`.
+Closes the connection. A managed transaction is rolled back first. Repeated closing returns `true`.
+
+- **Parameters:** `connection` is the opaque handle to close.
+- **Returns:** `true` when the handle is closed or was already closed; otherwise `false` in non-strict mode.
 
 ### sqlite_errno
 
@@ -169,7 +139,10 @@ Schließt `connection`. Eine noch aktive Transaktion wird vorher zurückgerollt.
 sqlite_errno(SQLiteProceduralConnection $connection): int
 ```
 
-Gibt den zuletzt durch diese API gespeicherten SQLite-Fehlercode der Verbindung zurück.
+Returns the last stored connection error code, or `0`.
+
+- **Parameters:** `connection` is the connection to inspect.
+- **Returns:** The stored SQLite error code.
 
 ### sqlite_error
 
@@ -177,7 +150,10 @@ Gibt den zuletzt durch diese API gespeicherten SQLite-Fehlercode der Verbindung 
 sqlite_error(SQLiteProceduralConnection $connection): string
 ```
 
-Gibt die letzte Fehlermeldung der Verbindung oder eine leere Zeichenkette zurück.
+Returns the last stored connection error message, or an empty string.
+
+- **Parameters:** `connection` is the connection to inspect.
+- **Returns:** The stored error text or `''`.
 
 ### sqlite_sqlstate
 
@@ -185,7 +161,10 @@ Gibt die letzte Fehlermeldung der Verbindung oder eine leere Zeichenkette zurüc
 sqlite_sqlstate(SQLiteProceduralConnection $connection): string
 ```
 
-Gibt `00000` bei fehlerfreiem Zustand und andernfalls den allgemeinen SQLSTATE `HY000` zurück.
+Returns `00000` without an error and the generic SQLSTATE `HY000` otherwise.
+
+- **Parameters:** `connection` is the connection to inspect.
+- **Returns:** A five-character SQLSTATE string.
 
 ### sqlite_error_list
 
@@ -193,7 +172,10 @@ Gibt `00000` bei fehlerfreiem Zustand und andernfalls den allgemeinen SQLSTATE `
 sqlite_error_list(SQLiteProceduralConnection $connection): array
 ```
 
-Gibt entweder ein leeres Array oder einen Eintrag mit `errno`, `sqlstate` und `error` für den letzten Fehler zurück.
+Returns an empty array or one entry containing `errno`, `sqlstate`, and `error`.
+
+- **Parameters:** `connection` is the connection to inspect.
+- **Returns:** `[]` or a one-element list containing the last error details.
 
 ### sqlite_ping
 
@@ -201,9 +183,12 @@ Gibt entweder ein leeres Array oder einen Eintrag mit `errno`, `sqlstate` und `e
 sqlite_ping(SQLiteProceduralConnection $connection): bool
 ```
 
-Prüft mit `SELECT 1`, ob die Verbindung noch verwendbar ist.
+Checks whether the connection remains usable by executing `SELECT 1`.
 
-## Abfragen
+- **Parameters:** `connection` is the handle to test.
+- **Returns:** `true` when the probe succeeds, otherwise `false`.
+
+## Queries
 
 ### sqlite_query
 
@@ -211,7 +196,11 @@ Prüft mit `SELECT 1`, ob die Verbindung noch verwendbar ist.
 sqlite_query(SQLiteProceduralConnection $connection, string $query): SQLiteProceduralResult|bool
 ```
 
-Führt genau eine SQL-Anweisung aus. Abfragen mit Spalten liefern ein gepuffertes Resulthandle; Anweisungen ohne Ergebnisspalten liefern `true`. Fehler liefern `false` oder lösen gemäß Report-Modus eine Exception aus.
+Executes one statement. Queries return a buffered result; statements without result columns return `true`.
+
+- **Parameters:** `connection` is an open handle; `query` is one complete SQL statement.
+- **Returns:** `SQLiteProceduralResult` for row-producing SQL, `true` for successful non-row SQL, or `false` in non-strict error mode.
+- **Errors:** SQLite errors are copied to the connection and processed by `sqlite_report()`.
 
 ### sqlite_execute
 
@@ -219,31 +208,33 @@ Führt genau eine SQL-Anweisung aus. Abfragen mit Spalten liefern ein gepufferte
 sqlite_execute(SQLiteProceduralConnection $connection, string $query): bool
 ```
 
-Führt eine oder mehrere SQL-Anweisungen ohne abrufbare Ergebnismenge aus. Geeignet für Schemaänderungen und feste SQL-Anweisungen. Gibt bei Erfolg `true` zurück.
+Executes one or more statements without exposing results. Returns `true` on success.
+
+- **Parameters:** `connection` is an open handle; `query` contains SQL whose rows, if any, are intentionally discarded.
+- **Returns:** `true` on success or `false` in non-strict error mode.
 
 ### sqlite_execute_query
 
 ```php
-sqlite_execute_query(
-    SQLiteProceduralConnection $connection,
-    string $query,
-    ?array $params = null
-): SQLiteProceduralResult|bool
+sqlite_execute_query(SQLiteProceduralConnection $connection, string $query, ?array $params = null): SQLiteProceduralResult|bool
 ```
 
-Bereitet `query` vor, bindet die Werte aus `params` positionsbasiert, führt die Anweisung aus und schließt das interne Statement. Abfragen mit Spalten liefern ein Resulthandle, Anweisungen ohne Ergebnisspalten `true`. Diese Kurzform entspricht `mysqli_execute_query()`.
+Prepares `query`, binds positional `params`, executes, and closes the internal statement. Queries return a result; writes return `true`.
+
+- **Parameters:** `connection` is an open handle; `query` contains optional positional placeholders; `params` supplies values in placeholder order.
+- **Returns:** A buffered result for row-producing SQL, `true` for successful writes, or `false` on an error in non-strict mode.
+- **Errors:** A parameter-count mismatch throws `ArgumentCountError`.
 
 ### sqlite_query_single
 
 ```php
-sqlite_query_single(
-    SQLiteProceduralConnection $connection,
-    string $query,
-    bool $entireRow = false
-): mixed
+sqlite_query_single(SQLiteProceduralConnection $connection, string $query, bool $entireRow = false): mixed
 ```
 
-Liefert bei `entireRow = false` den Wert der ersten Spalte der ersten Zeile. Bei `true` wird die erste Zeile als assoziatives Array geliefert. Eine leere Ergebnismenge liefert `null` beziehungsweise ein leeres Array; ein Fehler liefert `false` oder löst eine Exception aus.
+Returns the first column of the first row. With `entireRow = true`, returns the first row as an associative array.
+
+- **Parameters:** `connection` is an open handle; `query` is one SQL query; `entireRow` selects scalar versus associative-row output.
+- **Returns:** The first scalar value, the first associative row, an empty-result value (`null` or `[]`), or `false` on error.
 
 ### sqlite_multi_query
 
@@ -251,7 +242,11 @@ Liefert bei `entireRow = false` den Wert der ersten Spalte der ersten Zeile. Bei
 sqlite_multi_query(SQLiteProceduralConnection $connection, string $query): bool
 ```
 
-Führt mehrere durch Semikolon getrennte Anweisungen aus und speichert deren Ergebnisse in der Verbindung. Das erste Ergebnis ist anschließend aktuell. Strings, quoted identifiers sowie Zeilen- und Blockkommentare werden beim Trennen berücksichtigt. Gibt bei vollständigem Erfolg `true` zurück.
+Executes semicolon-separated statements and stores their results. Strings, quoted identifiers, and comments are respected while splitting.
+
+- **Parameters:** `connection` is an open handle; `query` contains multiple ordinary SQL statements.
+- **Returns:** `true` if every statement succeeds, otherwise `false` in non-strict mode.
+- **Notes:** Trigger bodies containing internal semicolons are not supported by the splitter; execute those with `sqlite_execute()`.
 
 ### sqlite_store_result
 
@@ -259,7 +254,10 @@ Führt mehrere durch Semikolon getrennte Anweisungen aus und speichert deren Erg
 sqlite_store_result(SQLiteProceduralConnection $connection): SQLiteProceduralResult|false
 ```
 
-Gibt die Ergebnismenge der aktuellen Multi-Query-Anweisung zurück. Für Anweisungen ohne Ergebnismenge wird `false` geliefert.
+Returns the current multi-query result, or `false` when the current statement has no result columns.
+
+- **Parameters:** `connection` is the handle used by the latest `sqlite_multi_query()`.
+- **Returns:** The current `SQLiteProceduralResult`, or `false` for a non-row statement or missing result.
 
 ### sqlite_more_results
 
@@ -267,7 +265,10 @@ Gibt die Ergebnismenge der aktuellen Multi-Query-Anweisung zurück. Für Anweisu
 sqlite_more_results(SQLiteProceduralConnection $connection): bool
 ```
 
-Gibt an, ob nach dem aktuellen Multi-Query-Ergebnis ein weiteres Ergebnis vorhanden ist.
+Returns whether another multi-query result is available.
+
+- **Parameters:** `connection` is the multi-query connection.
+- **Returns:** `true` when `sqlite_next_result()` can advance.
 
 ### sqlite_next_result
 
@@ -275,7 +276,10 @@ Gibt an, ob nach dem aktuellen Multi-Query-Ergebnis ein weiteres Ergebnis vorhan
 sqlite_next_result(SQLiteProceduralConnection $connection): bool
 ```
 
-Wechselt zum nächsten Multi-Query-Ergebnis. Gibt `false` zurück, wenn kein weiteres Ergebnis existiert.
+Advances to the next multi-query result, or returns `false` at the end.
+
+- **Parameters:** `connection` is the multi-query connection.
+- **Returns:** `true` after advancing or `false` when already at the final result.
 
 ### sqlite_affected_rows
 
@@ -283,7 +287,10 @@ Wechselt zum nächsten Multi-Query-Ergebnis. Gibt `false` zurück, wenn kein wei
 sqlite_affected_rows(SQLiteProceduralConnection $connection): int
 ```
 
-Gibt die Zahl der von der zuletzt ausgeführten `INSERT`-, `UPDATE`- oder `DELETE`-Anweisung geänderten Zeilen zurück.
+Returns the number of rows changed by the latest write operation.
+
+- **Parameters:** `connection` is the connection to inspect.
+- **Returns:** The native SQLite changed-row count.
 
 ### sqlite_insert_id
 
@@ -291,7 +298,10 @@ Gibt die Zahl der von der zuletzt ausgeführten `INSERT`-, `UPDATE`- oder `DELET
 sqlite_insert_id(SQLiteProceduralConnection $connection): int
 ```
 
-Gibt die Row-ID der zuletzt eingefügten Zeile dieser Verbindung zurück.
+Returns the row ID generated by the latest insert.
+
+- **Parameters:** `connection` is the connection to inspect.
+- **Returns:** The latest SQLite row ID as an integer.
 
 ### sqlite_real_escape_string
 
@@ -299,9 +309,13 @@ Gibt die Row-ID der zuletzt eingefügten Zeile dieser Verbindung zurück.
 sqlite_real_escape_string(SQLiteProceduralConnection $connection, string $string): string
 ```
 
-Maskiert einfache Anführungszeichen für ein SQLite-Stringliteral. Die Funktion fügt keine umschließenden Anführungszeichen hinzu. Prepared Statements sind vorzuziehen.
+Escapes single quotes inside a SQLite string literal. It does not add surrounding quotes. Prefer prepared statements.
 
-## Ergebnismengen
+- **Parameters:** `connection` must be open; `string` is the raw value to escape.
+- **Returns:** The escaped string without quote delimiters.
+- **Security:** This is for literal values only, not identifiers. Parameter binding is safer.
+
+## Result sets
 
 ### sqlite_fetch_array
 
@@ -309,7 +323,11 @@ Maskiert einfache Anführungszeichen für ein SQLite-Stringliteral. Die Funktion
 sqlite_fetch_array(SQLiteProceduralResult $result, int $mode = SQLITE_BOTH): ?array
 ```
 
-Liest die nächste Zeile. `mode` ist `SQLITE_ASSOC`, `SQLITE_NUM` oder `SQLITE_BOTH`. Gibt am Ende der Ergebnismenge `null` zurück.
+Fetches the next row using `SQLITE_ASSOC`, `SQLITE_NUM`, or `SQLITE_BOTH`. Returns `null` at the end.
+
+- **Parameters:** `result` is a buffered result handle; `mode` controls array keys.
+- **Returns:** The next row as an array or `null` when exhausted/freed.
+- **Errors:** Invalid modes throw `ValueError`.
 
 ### sqlite_fetch_assoc
 
@@ -317,7 +335,10 @@ Liest die nächste Zeile. `mode` ist `SQLITE_ASSOC`, `SQLITE_NUM` oder `SQLITE_B
 sqlite_fetch_assoc(SQLiteProceduralResult $result): ?array
 ```
 
-Liest die nächste Zeile als assoziatives Array oder liefert am Ende `null`. Bei doppelten Spaltennamen überschreibt der weiter rechts stehende Wert den vorherigen.
+Fetches the next row with column names as keys, or `null` at the end. Later duplicate names overwrite earlier values.
+
+- **Parameters:** `result` is a buffered result handle.
+- **Returns:** The next associative row or `null`.
 
 ### sqlite_fetch_row
 
@@ -325,19 +346,22 @@ Liest die nächste Zeile als assoziatives Array oder liefert am Ende `null`. Bei
 sqlite_fetch_row(SQLiteProceduralResult $result): ?array
 ```
 
-Liest die nächste Zeile als numerisch indiziertes Array oder liefert am Ende `null`.
+Fetches the next row as a zero-based numeric array, or `null`.
+
+- **Parameters:** `result` is a buffered result handle.
+- **Returns:** The next numeric row or `null`.
 
 ### sqlite_fetch_object
 
 ```php
-sqlite_fetch_object(
-    SQLiteProceduralResult $result,
-    string $class = stdClass::class,
-    array $constructorArgs = []
-): ?object
+sqlite_fetch_object(SQLiteProceduralResult $result, string $class = stdClass::class, array $constructorArgs = []): ?object
 ```
 
-Liest die nächste Zeile in die Eigenschaften einer Instanz von `class`. Die Spaltenwerte werden vor dem Aufruf des Konstruktors gesetzt. `constructorArgs` enthält dessen Argumente. Am Ende wird `null` geliefert.
+Hydrates the next row into `class`. Properties are assigned before its constructor receives `constructorArgs`.
+
+- **Parameters:** `result` is the result handle; `class` is an instantiable class name; `constructorArgs` is passed to its constructor.
+- **Returns:** A hydrated object or `null` at the end.
+- **Errors:** Reflection, property-type, and constructor errors propagate normally.
 
 ### sqlite_fetch_all
 
@@ -345,7 +369,10 @@ Liest die nächste Zeile in die Eigenschaften einer Instanz von `class`. Die Spa
 sqlite_fetch_all(SQLiteProceduralResult $result, int $mode = SQLITE_NUM): array
 ```
 
-Liest alle noch nicht abgerufenen Zeilen im angegebenen Fetch-Modus und bewegt den Cursor ans Ende.
+Returns all remaining rows in the requested mode and advances the cursor to the end.
+
+- **Parameters:** `result` is a buffered result; `mode` is one of the three fetch constants.
+- **Returns:** A list of remaining rows, possibly empty.
 
 ### sqlite_fetch_column
 
@@ -353,7 +380,10 @@ Liest alle noch nicht abgerufenen Zeilen im angegebenen Fetch-Modus und bewegt d
 sqlite_fetch_column(SQLiteProceduralResult $result, int $column = 0): mixed
 ```
 
-Liest aus der nächsten Zeile die durch den nullbasierten Index `column` bezeichnete Spalte. Gibt am Ende `null` zurück; ein ungültiger Index löst `ValueError` aus.
+Returns zero-based `column` from the next row, or `null` at the end. Invalid indexes throw `ValueError`.
+
+- **Parameters:** `result` is a buffered result; `column` is a zero-based column index.
+- **Returns:** The selected value or `null` when no row remains.
 
 ### sqlite_fetch_lengths
 
@@ -361,7 +391,10 @@ Liest aus der nächsten Zeile die durch den nullbasierten Index `column` bezeich
 sqlite_fetch_lengths(SQLiteProceduralResult $result): array|false
 ```
 
-Gibt die Bytelänge jeder Spalte der zuletzt gelesenen Zeile zurück. Vor dem ersten Fetch wird `false` geliefert; `NULL` hat die Länge `0`.
+Returns byte lengths for the last fetched row, or `false` before fetching. `NULL` has length `0`.
+
+- **Parameters:** `result` is the result whose most recently fetched row is inspected.
+- **Returns:** A numeric list of byte lengths, or `false` when no row has been fetched.
 
 ### sqlite_num_rows
 
@@ -369,7 +402,10 @@ Gibt die Bytelänge jeder Spalte der zuletzt gelesenen Zeile zurück. Vor dem er
 sqlite_num_rows(SQLiteProceduralResult $result): int
 ```
 
-Gibt die Gesamtzahl der gepufferten Zeilen zurück, unabhängig von der aktuellen Cursorposition.
+Returns the total number of buffered rows.
+
+- **Parameters:** `result` is a buffered result handle.
+- **Returns:** Total row count, or `0` after freeing the result.
 
 ### sqlite_num_fields
 
@@ -377,7 +413,10 @@ Gibt die Gesamtzahl der gepufferten Zeilen zurück, unabhängig von der aktuelle
 sqlite_num_fields(SQLiteProceduralResult $result): int
 ```
 
-Gibt die Anzahl der Spalten der Ergebnismenge zurück.
+Returns the number of result columns.
+
+- **Parameters:** `result` is a buffered result handle.
+- **Returns:** Column count, or `0` after freeing the result.
 
 ### sqlite_data_seek
 
@@ -385,7 +424,10 @@ Gibt die Anzahl der Spalten der Ergebnismenge zurück.
 sqlite_data_seek(SQLiteProceduralResult $result, int $offset): bool
 ```
 
-Setzt den Zeilencursor auf den nullbasierten Index `offset`. Ein Index außerhalb einer vorhandenen Zeile löst `ValueError` aus.
+Moves the cursor to existing zero-based row `offset`; invalid offsets throw `ValueError`.
+
+- **Parameters:** `result` is the result to reposition; `offset` identifies an existing buffered row.
+- **Returns:** `true` after repositioning.
 
 ### sqlite_field_seek
 
@@ -393,7 +435,10 @@ Setzt den Zeilencursor auf den nullbasierten Index `offset`. Ein Index außerhal
 sqlite_field_seek(SQLiteProceduralResult $result, int $index): bool
 ```
 
-Setzt den internen Feldcursor auf den nullbasierten Spaltenindex `index`.
+Moves the field cursor to zero-based column `index`; invalid indexes throw `ValueError`.
+
+- **Parameters:** `result` is the result to reposition; `index` identifies an existing column.
+- **Returns:** `true` after repositioning.
 
 ### sqlite_field_tell
 
@@ -401,7 +446,10 @@ Setzt den internen Feldcursor auf den nullbasierten Spaltenindex `index`.
 sqlite_field_tell(SQLiteProceduralResult $result): int
 ```
 
-Gibt die aktuelle Position des Feldcursors zurück.
+Returns the current field-cursor position.
+
+- **Parameters:** `result` is the result whose field cursor is inspected.
+- **Returns:** The zero-based cursor position.
 
 ### sqlite_fetch_field
 
@@ -409,7 +457,11 @@ Gibt die aktuelle Position des Feldcursors zurück.
 sqlite_fetch_field(SQLiteProceduralResult $result): object|false
 ```
 
-Gibt ein Metadatenobjekt für das Feld an der aktuellen Feldcursorposition zurück und erhöht den Cursor. Nach dem letzten Feld wird `false` geliefert. Das Objekt enthält mysqli-ähnliche Eigenschaften wie `name`, `type`, `table`, `flags` und `length`.
+Returns mysqli-style metadata for the current field and advances the cursor, or `false` at the end.
+
+- **Parameters:** `result` contains the field metadata.
+- **Returns:** An object with properties including `name`, `type`, `table`, `flags`, and `length`, or `false`.
+- **Notes:** Unsupported MySQL-specific properties contain neutral values.
 
 ### sqlite_fetch_field_direct
 
@@ -417,7 +469,10 @@ Gibt ein Metadatenobjekt für das Feld an der aktuellen Feldcursorposition zurü
 sqlite_fetch_field_direct(SQLiteProceduralResult $result, int $index): object
 ```
 
-Gibt das Metadatenobjekt der durch `index` bezeichneten Spalte zurück. Ein ungültiger Index löst `ValueError` aus.
+Returns metadata for zero-based column `index`; invalid indexes throw `ValueError`.
+
+- **Parameters:** `result` contains metadata; `index` identifies an existing column.
+- **Returns:** One field metadata object.
 
 ### sqlite_fetch_fields
 
@@ -425,7 +480,10 @@ Gibt das Metadatenobjekt der durch `index` bezeichneten Spalte zurück. Ein ung�
 sqlite_fetch_fields(SQLiteProceduralResult $result): array
 ```
 
-Gibt die Metadatenobjekte aller Spalten zurück.
+Returns metadata objects for all columns.
+
+- **Parameters:** `result` contains the field metadata.
+- **Returns:** A list of metadata objects in column order.
 
 ### sqlite_free_result
 
@@ -433,9 +491,12 @@ Gibt die Metadatenobjekte aller Spalten zurück.
 sqlite_free_result(SQLiteProceduralResult $result): void
 ```
 
-Gibt den Speicher der gepufferten Ergebnismenge frei. Das Handle darf danach nicht mehr zum Abrufen von Daten verwendet werden.
+Releases buffered rows and metadata. Do not use the handle afterward.
 
-## Prepared Statements
+- **Parameters:** `result` is the buffered handle to clear.
+- **Returns:** No value.
+
+## Prepared statements
 
 ### sqlite_prepare
 
@@ -443,28 +504,22 @@ Gibt den Speicher der gepufferten Ergebnismenge frei. Das Handle darf danach nic
 sqlite_prepare(SQLiteProceduralConnection $connection, string $query): SQLiteProceduralStatement|false
 ```
 
-Bereitet genau eine SQL-Anweisung vor und gibt ein Statementhandle zurück. Parameter können als `?`, `?NNN`, `:name`, `@name` oder `$name` geschrieben werden; für die mysqli-ähnliche Bindung sind positionsbasierte `?`-Parameter empfohlen.
+Prepares one statement. SQLite parameter forms are supported; positional `?` parameters are recommended.
+
+- **Parameters:** `connection` is an open handle; `query` is one SQL statement with optional placeholders.
+- **Returns:** `SQLiteProceduralStatement` on success or `false` in non-strict mode.
 
 ### sqlite_stmt_bind_param
 
 ```php
-sqlite_stmt_bind_param(
-    SQLiteProceduralStatement $statement,
-    string $types,
-    mixed &$variable,
-    mixed &...$variables
-): bool
+sqlite_stmt_bind_param(SQLiteProceduralStatement $statement, string $types, mixed &$variable, mixed &...$variables): bool
 ```
 
-Bindet Variablen per Referenz. Ihre Werte werden erst bei jedem `sqlite_stmt_execute()` gelesen.
+Binds variables by reference. `types` contains `i` (integer), `d` (float), `s` (text), or `b` (BLOB), one per parameter. `null` binds SQL `NULL`.
 
-**Parameter**
-
-- `statement` — Das vorbereitete Statement.
-- `types` — Ein Zeichen pro Parameter: `i` für Integer, `d` für Float, `s` für Text und `b` für BLOB.
-- `variable`, `variables` — Zu bindende Variablen in Parameterreihenfolge. Die Anzahl muss exakt der Parameterzahl entsprechen.
-
-`null` wird unabhängig vom Typzeichen als SQL-`NULL` gebunden.
+- **Parameters:** `statement` is prepared; `types` declares each binding; `variable`/`variables` are references in placeholder order.
+- **Returns:** `true` after binding.
+- **Errors:** Count mismatches throw `ArgumentCountError`; unsupported type letters throw `ValueError`.
 
 ### sqlite_stmt_send_long_data
 
@@ -472,7 +527,11 @@ Bindet Variablen per Referenz. Ihre Werte werden erst bei jedem `sqlite_stmt_exe
 sqlite_stmt_send_long_data(SQLiteProceduralStatement $statement, int $paramNum, string $data): bool
 ```
 
-Hängt `data` an einen mit `b` deklarierten Parameter an. `paramNum` ist nullbasiert. Mehrere Aufrufe vor dem Ausführen werden zusammengefügt; nach dem Ausführen wird der Puffer geleert.
+Appends `data` to zero-based `b` parameter `paramNum`. Repeated calls concatenate data until execution.
+
+- **Parameters:** `statement` has a previous `b` binding; `paramNum` is zero-based; `data` is the next binary chunk.
+- **Returns:** `true` on success or `false` in non-strict mode.
+- **Errors:** Invalid indexes throw `ValueError`; non-BLOB targets report a statement error.
 
 ### sqlite_stmt_execute
 
@@ -480,7 +539,11 @@ Hängt `data` an einen mit `b` deklarierten Parameter an. `paramNum` ist nullbas
 sqlite_stmt_execute(SQLiteProceduralStatement $statement, ?array $params = null): bool
 ```
 
-Führt das Statement aus. Ohne `params` werden die zuvor per Referenz gebundenen Variablen gelesen; bei parametrisiertem SQL muss die Bindung vollständig sein. Alternativ bindet `params` einmalig ein positionsbasiertes Wertearray; die Typen werden aus den PHP-Werten abgeleitet. Eine Ergebnismenge wird intern gepuffert. Gibt bei Erfolg `true` zurück.
+Executes the statement. Without `params`, all parameters must be bound. Otherwise, positional PHP values are bound with inferred types.
+
+- **Parameters:** `statement` is prepared; `params` optionally supplies a one-shot positional value list.
+- **Returns:** `true` on success or `false` in non-strict mode. Result rows are buffered on the statement.
+- **Errors:** Incomplete or incorrectly sized parameter lists report an error or throw `ArgumentCountError`.
 
 ### sqlite_stmt_execute_query
 
@@ -488,7 +551,10 @@ Führt das Statement aus. Ohne `params` werden die zuvor per Referenz gebundenen
 sqlite_stmt_execute_query(SQLiteProceduralStatement $statement, ?array $params = null): SQLiteProceduralResult|false
 ```
 
-Kurzform aus `sqlite_stmt_execute()` und `sqlite_stmt_get_result()`. Für ein erfolgreiches Statement ohne Ergebnisspalten wird `false` geliefert.
+Combines statement execution with `sqlite_stmt_get_result()`. Successful statements without result columns return `false`.
+
+- **Parameters:** `statement` is prepared; `params` follows `sqlite_stmt_execute()` semantics.
+- **Returns:** A buffered result, or `false` for non-row SQL/failure.
 
 ### sqlite_stmt_get_result
 
@@ -496,7 +562,10 @@ Kurzform aus `sqlite_stmt_execute()` und `sqlite_stmt_get_result()`. Für ein er
 sqlite_stmt_get_result(SQLiteProceduralStatement $statement): SQLiteProceduralResult|false
 ```
 
-Gibt die gepufferte Ergebnismenge des zuletzt ausgeführten Statements zurück. Statements ohne Ergebnisspalten liefern `false`.
+Returns the buffered result from the latest execution, or `false` without result columns.
+
+- **Parameters:** `statement` is an executed statement.
+- **Returns:** `SQLiteProceduralResult` or `false`.
 
 ### sqlite_stmt_bind_result
 
@@ -504,7 +573,11 @@ Gibt die gepufferte Ergebnismenge des zuletzt ausgeführten Statements zurück. 
 sqlite_stmt_bind_result(SQLiteProceduralStatement $statement, mixed &$variable, mixed &...$variables): bool
 ```
 
-Bindet für jede Ergebnisspalte eine Ausgabevariable per Referenz. Das Statement muss bereits ausgeführt worden sein. Die Anzahl der Variablen muss der Spaltenzahl entsprechen.
+Binds one output variable by reference per result column. The statement must already be executed.
+
+- **Parameters:** `statement` has a buffered result; `variable`/`variables` are output references in column order.
+- **Returns:** `true` after binding.
+- **Errors:** A variable-count mismatch throws `ArgumentCountError`.
 
 ### sqlite_stmt_fetch
 
@@ -512,7 +585,10 @@ Bindet für jede Ergebnisspalte eine Ausgabevariable per Referenz. Das Statement
 sqlite_stmt_fetch(SQLiteProceduralStatement $statement): ?bool
 ```
 
-Überträgt die nächste Zeile in die mit `sqlite_stmt_bind_result()` gebundenen Variablen. Gibt `true` für eine gelesene Zeile und `null` am Ende zurück.
+Copies the next row into bound result variables. Returns `true` for a row and `null` at the end.
+
+- **Parameters:** `statement` has an executed result and bound output variables.
+- **Returns:** `true` for a fetched row or `null` when exhausted.
 
 ### sqlite_stmt_store_result
 
@@ -520,7 +596,10 @@ sqlite_stmt_fetch(SQLiteProceduralStatement $statement): ?bool
 sqlite_stmt_store_result(SQLiteProceduralStatement $statement): bool
 ```
 
-Gibt `true` zurück, wenn das zuletzt ausgeführte Statement eine gepufferte Ergebnismenge besitzt. Das Puffern selbst erfolgt bereits beim Ausführen.
+Returns whether the latest execution has a buffered result. Buffering occurs automatically.
+
+- **Parameters:** `statement` is the statement to inspect.
+- **Returns:** `true` when a result exists, otherwise `false`.
 
 ### sqlite_stmt_result_metadata
 
@@ -528,7 +607,10 @@ Gibt `true` zurück, wenn das zuletzt ausgeführte Statement eine gepufferte Erg
 sqlite_stmt_result_metadata(SQLiteProceduralStatement $statement): SQLiteProceduralResult|false
 ```
 
-Gibt nach dem Ausführen ein zeilenloses Resulthandle mit den Spaltenmetadaten zurück. Ohne Ergebnisspalten wird `false` geliefert.
+Returns a rowless handle containing result metadata, or `false` without result columns.
+
+- **Parameters:** `statement` must have been executed.
+- **Returns:** A metadata-only `SQLiteProceduralResult` or `false`.
 
 ### sqlite_stmt_data_seek
 
@@ -536,7 +618,10 @@ Gibt nach dem Ausführen ein zeilenloses Resulthandle mit den Spaltenmetadaten z
 sqlite_stmt_data_seek(SQLiteProceduralStatement $statement, int $offset): void
 ```
 
-Setzt den Cursor der Statement-Ergebnismenge auf die vorhandene Zeile `offset`. Ohne Ergebnis oder bei ungültigem Index wird `ValueError` ausgelöst.
+Moves the statement-result cursor to existing row `offset`. Invalid state or offsets throw `ValueError`.
+
+- **Parameters:** `statement` has a buffered result; `offset` is an existing zero-based row.
+- **Returns:** No value.
 
 ### sqlite_stmt_reset
 
@@ -544,7 +629,10 @@ Setzt den Cursor der Statement-Ergebnismenge auf die vorhandene Zeile `offset`. 
 sqlite_stmt_reset(SQLiteProceduralStatement $statement): bool
 ```
 
-Setzt Ausführungszustand, Ergebnis und Long-Data-Puffer zurück. Per Referenz gebundene Variablen bleiben gebunden.
+Resets execution state, results, and long-data buffers. Reference bindings remain.
+
+- **Parameters:** `statement` is the handle to reset.
+- **Returns:** The native reset result as `bool`.
 
 ### sqlite_stmt_free_result
 
@@ -552,7 +640,10 @@ Setzt Ausführungszustand, Ergebnis und Long-Data-Puffer zurück. Per Referenz g
 sqlite_stmt_free_result(SQLiteProceduralStatement $statement): void
 ```
 
-Gibt die aktuelle gepufferte Ergebnismenge des Statements frei.
+Releases the current buffered statement result.
+
+- **Parameters:** `statement` owns the result to release.
+- **Returns:** No value.
 
 ### sqlite_stmt_close
 
@@ -560,7 +651,10 @@ Gibt die aktuelle gepufferte Ergebnismenge des Statements frei.
 sqlite_stmt_close(SQLiteProceduralStatement $statement): bool
 ```
 
-Gibt Ergebnis und natives Statement frei. Wiederholtes Schließen liefert `true`.
+Releases the result and native statement. Repeated closing returns `true`.
+
+- **Parameters:** `statement` is the handle to close.
+- **Returns:** `true` on success or when already closed; otherwise `false` in non-strict mode.
 
 ### sqlite_stmt_param_count
 
@@ -568,7 +662,10 @@ Gibt Ergebnis und natives Statement frei. Wiederholtes Schließen liefert `true`
 sqlite_stmt_param_count(SQLiteProceduralStatement $statement): int
 ```
 
-Gibt die Anzahl der SQL-Parameter des vorbereiteten Statements zurück.
+Returns the number of SQL parameters.
+
+- **Parameters:** `statement` is prepared.
+- **Returns:** Native parameter count as an integer.
 
 ### sqlite_stmt_field_count
 
@@ -576,7 +673,10 @@ Gibt die Anzahl der SQL-Parameter des vorbereiteten Statements zurück.
 sqlite_stmt_field_count(SQLiteProceduralStatement $statement): int
 ```
 
-Gibt nach dem Ausführen die Anzahl der Ergebnisspalten zurück, andernfalls `0`.
+Returns the result-column count after execution, or `0`.
+
+- **Parameters:** `statement` is the statement to inspect.
+- **Returns:** Buffered result-column count.
 
 ### sqlite_stmt_num_rows
 
@@ -584,7 +684,10 @@ Gibt nach dem Ausführen die Anzahl der Ergebnisspalten zurück, andernfalls `0`
 sqlite_stmt_num_rows(SQLiteProceduralStatement $statement): int
 ```
 
-Gibt die Anzahl der gepufferten Ergebniszeilen des Statements zurück.
+Returns the number of buffered result rows.
+
+- **Parameters:** `statement` is the statement to inspect.
+- **Returns:** Buffered row count, or `0` without a result.
 
 ### sqlite_stmt_affected_rows
 
@@ -592,7 +695,10 @@ Gibt die Anzahl der gepufferten Ergebniszeilen des Statements zurück.
 sqlite_stmt_affected_rows(SQLiteProceduralStatement $statement): int
 ```
 
-Gibt die Zahl der durch die letzte Ausführung geänderten Zeilen zurück.
+Returns the number of rows changed by the latest execution.
+
+- **Parameters:** `statement` is the statement to inspect.
+- **Returns:** Changed-row count; read-only statements report `0`.
 
 ### sqlite_stmt_insert_id
 
@@ -600,7 +706,10 @@ Gibt die Zahl der durch die letzte Ausführung geänderten Zeilen zurück.
 sqlite_stmt_insert_id(SQLiteProceduralStatement $statement): int
 ```
 
-Gibt die nach der letzten Ausführung ermittelte Row-ID zurück.
+Returns the row ID recorded after the latest execution.
+
+- **Parameters:** `statement` is the statement to inspect.
+- **Returns:** Last recorded SQLite row ID.
 
 ### sqlite_stmt_errno
 
@@ -608,7 +717,10 @@ Gibt die nach der letzten Ausführung ermittelte Row-ID zurück.
 sqlite_stmt_errno(SQLiteProceduralStatement $statement): int
 ```
 
-Gibt den letzten gespeicherten Fehlercode des Statements zurück.
+Returns the last stored statement error code, or `0`.
+
+- **Parameters:** `statement` is the statement to inspect.
+- **Returns:** Stored integer error code.
 
 ### sqlite_stmt_error
 
@@ -616,7 +728,10 @@ Gibt den letzten gespeicherten Fehlercode des Statements zurück.
 sqlite_stmt_error(SQLiteProceduralStatement $statement): string
 ```
 
-Gibt die letzte gespeicherte Fehlermeldung des Statements zurück.
+Returns the last stored statement error message, or an empty string.
+
+- **Parameters:** `statement` is the statement to inspect.
+- **Returns:** Stored error text or `''`.
 
 ### sqlite_stmt_sqlstate
 
@@ -624,7 +739,10 @@ Gibt die letzte gespeicherte Fehlermeldung des Statements zurück.
 sqlite_stmt_sqlstate(SQLiteProceduralStatement $statement): string
 ```
 
-Gibt `00000` bei fehlerfreiem Zustand und andernfalls `HY000` zurück.
+Returns `00000` without an error and `HY000` otherwise.
+
+- **Parameters:** `statement` is the statement to inspect.
+- **Returns:** A five-character SQLSTATE string.
 
 ### sqlite_stmt_readonly
 
@@ -632,7 +750,10 @@ Gibt `00000` bei fehlerfreiem Zustand und andernfalls `HY000` zurück.
 sqlite_stmt_readonly(SQLiteProceduralStatement $statement): bool
 ```
 
-Gibt `true` zurück, wenn das Statement die Datenbank nicht verändert.
+Returns whether the statement cannot modify the database.
+
+- **Parameters:** `statement` is prepared.
+- **Returns:** `true` for read-only SQL, otherwise `false`.
 
 ### sqlite_stmt_sql
 
@@ -640,21 +761,25 @@ Gibt `true` zurück, wenn das Statement die Datenbank nicht verändert.
 sqlite_stmt_sql(SQLiteProceduralStatement $statement, bool $expand = false): string
 ```
 
-Gibt den SQL-Text des Statements zurück. Bei `expand = true` versucht SQLite, gebundene Werte in den zurückgegebenen Text einzusetzen. Der expandierte Text darf nicht zur erneuten Ausführung oder Protokollierung von Geheimnissen verwendet werden.
+Returns statement SQL. With `expand = true`, bound values are substituted where possible; expanded SQL can expose secrets.
 
-## Transaktionen
+- **Parameters:** `statement` is prepared; `expand` requests substituted bound values.
+- **Returns:** Original or expanded SQL text.
+- **Security:** Treat expanded SQL as sensitive data and do not use it as a new query.
+
+## Transactions
 
 ### sqlite_begin_transaction
 
 ```php
-sqlite_begin_transaction(
-    SQLiteProceduralConnection $connection,
-    int $flags = SQLITE_TRANS_DEFERRED,
-    ?string $name = null
-): bool
+sqlite_begin_transaction(SQLiteProceduralConnection $connection, int $flags = SQLITE_TRANS_DEFERRED, ?string $name = null): bool
 ```
 
-Beginnt eine Transaktion im durch `flags` bestimmten Modus. `name` wird aus mysqli-Kompatibilitätsgründen akzeptiert, von SQLite aber ignoriert. Ist bereits eine Transaktion aktiv, wird ein Fehler gemeldet.
+Starts a transaction selected by `flags`. `name` is accepted for mysqli compatibility but ignored.
+
+- **Parameters:** `connection` is open; `flags` is one transaction-mode constant; `name` is an ignored compatibility argument.
+- **Returns:** `true` on success or `false` in non-strict mode.
+- **Errors:** An invalid flag throws `ValueError`; an already managed transaction reports an error.
 
 ### sqlite_commit
 
@@ -662,7 +787,10 @@ Beginnt eine Transaktion im durch `flags` bestimmten Modus. `name` wird aus mysq
 sqlite_commit(SQLiteProceduralConnection $connection, int $flags = 0, ?string $name = null): bool
 ```
 
-Schreibt die aktive Transaktion fest. Ohne aktive Transaktion wird `true` geliefert. `flags` und `name` werden nur aus Kompatibilitätsgründen akzeptiert.
+Commits the active transaction. Returns `true` when none is active. Compatibility parameters are ignored.
+
+- **Parameters:** `connection` owns the transaction; `flags` and `name` are accepted but ignored.
+- **Returns:** `true` after commit or when no transaction is active; otherwise `false` in non-strict mode.
 
 ### sqlite_rollback
 
@@ -670,7 +798,10 @@ Schreibt die aktive Transaktion fest. Ohne aktive Transaktion wird `true` gelief
 sqlite_rollback(SQLiteProceduralConnection $connection, int $flags = 0, ?string $name = null): bool
 ```
 
-Rollt die aktive Transaktion zurück. Ohne aktive Transaktion wird `true` geliefert. `flags` und `name` werden nur aus Kompatibilitätsgründen akzeptiert.
+Rolls back the active transaction. Returns `true` when none is active. Compatibility parameters are ignored.
+
+- **Parameters:** `connection` owns the transaction; `flags` and `name` are accepted but ignored.
+- **Returns:** `true` after rollback or when no transaction is active; otherwise `false` in non-strict mode.
 
 ### sqlite_autocommit
 
@@ -678,7 +809,10 @@ Rollt die aktive Transaktion zurück. Ohne aktive Transaktion wird `true` gelief
 sqlite_autocommit(SQLiteProceduralConnection $connection, bool $enable): bool
 ```
 
-Schaltet den Autocommit-Modus um. Beim Deaktivieren wird sofort eine verzögerte Transaktion begonnen. Beim Aktivieren wird eine aktive Transaktion festgeschrieben.
+Changes managed autocommit. Disabling starts a deferred transaction; enabling commits the active transaction.
+
+- **Parameters:** `connection` is open; `enable` selects autocommit state.
+- **Returns:** `true` on success, including no-op state changes, or `false` in non-strict mode.
 
 ### sqlite_get_autocommit
 
@@ -686,7 +820,10 @@ Schaltet den Autocommit-Modus um. Beim Deaktivieren wird sofort eine verzögerte
 sqlite_get_autocommit(SQLiteProceduralConnection $connection): bool
 ```
 
-Gibt den durch `sqlite_autocommit()` verwalteten Autocommit-Status zurück.
+Returns the managed autocommit state.
+
+- **Parameters:** `connection` is the handle to inspect.
+- **Returns:** `true` when managed autocommit is enabled.
 
 ### sqlite_savepoint
 
@@ -694,7 +831,11 @@ Gibt den durch `sqlite_autocommit()` verwalteten Autocommit-Status zurück.
 sqlite_savepoint(SQLiteProceduralConnection $connection, string $name): bool
 ```
 
-Erstellt einen Savepoint. `name` muss mit einem Buchstaben oder Unterstrich beginnen und darf danach nur Buchstaben, Ziffern und Unterstriche enthalten.
+Creates a savepoint. Names must start with a letter/underscore and contain only letters, digits, and underscores.
+
+- **Parameters:** `connection` is open; `name` is the validated savepoint identifier.
+- **Returns:** `true` on success or `false` in non-strict mode.
+- **Errors:** Invalid identifiers throw `ValueError`.
 
 ### sqlite_release_savepoint
 
@@ -702,7 +843,10 @@ Erstellt einen Savepoint. `name` muss mit einem Buchstaben oder Unterstrich begi
 sqlite_release_savepoint(SQLiteProceduralConnection $connection, string $name): bool
 ```
 
-Gibt den benannten Savepoint frei. Für `name` gelten dieselben Regeln wie bei `sqlite_savepoint()`.
+Releases the named savepoint. The same identifier restrictions apply.
+
+- **Parameters:** `connection` is open; `name` identifies the savepoint.
+- **Returns:** `true` on success or `false` in non-strict mode.
 
 ### sqlite_rollback_to_savepoint
 
@@ -710,9 +854,12 @@ Gibt den benannten Savepoint frei. Für `name` gelten dieselben Regeln wie bei `
 sqlite_rollback_to_savepoint(SQLiteProceduralConnection $connection, string $name): bool
 ```
 
-Rollt Änderungen bis zum benannten Savepoint zurück, ohne ihn freizugeben.
+Rolls back to the named savepoint without releasing it.
 
-## SQLite-spezifische Funktionen
+- **Parameters:** `connection` is open; `name` identifies the savepoint.
+- **Returns:** `true` on success or `false` in non-strict mode.
+
+## SQLite-specific functions
 
 ### sqlite_busy_timeout
 
@@ -720,48 +867,44 @@ Rollt Änderungen bis zum benannten Savepoint zurück, ohne ihn freizugeben.
 sqlite_busy_timeout(SQLiteProceduralConnection $connection, int $milliseconds): bool
 ```
 
-Legt fest, wie lange SQLite bei einer gesperrten Datenbank erneut versucht zuzugreifen. `milliseconds` muss mindestens `0` sein; `0` deaktiviert das Warten.
+Sets the lock retry duration. `milliseconds` must be non-negative; `0` disables waiting.
+
+- **Parameters:** `connection` is open; `milliseconds` sets the native busy timeout.
+- **Returns:** The native operation result.
+- **Errors:** Negative values throw `ValueError`.
 
 ### sqlite_backup
 
 ```php
-sqlite_backup(
-    SQLiteProceduralConnection $source,
-    SQLiteProceduralConnection $destination,
-    string $sourceDatabase = 'main',
-    string $destinationDatabase = 'main'
-): bool
+sqlite_backup(SQLiteProceduralConnection $source, SQLiteProceduralConnection $destination, string $sourceDatabase = 'main', string $destinationDatabase = 'main'): bool
 ```
 
-Kopiert eine geöffnete Quelldatenbank in eine geöffnete Zieldatenbank. Die Datenbanknamen beziehen sich auf `main`, `temp` oder mit `ATTACH` eingebundene Schemas.
+Copies an open source database to an open destination. Database names select `main`, `temp`, or attached schemas.
+
+- **Parameters:** `source` and `destination` are open handles; the database-name strings select schemas on each handle.
+- **Returns:** `true` on success or `false` in non-strict mode.
 
 ### sqlite_create_function
 
 ```php
-sqlite_create_function(
-    SQLiteProceduralConnection $connection,
-    string $name,
-    callable $callback,
-    int $argCount = -1,
-    int $flags = 0
-): bool
+sqlite_create_function(SQLiteProceduralConnection $connection, string $name, callable $callback, int $argCount = -1, int $flags = 0): bool
 ```
 
-Registriert eine skalare SQL-Funktion. `callback` erhält die SQL-Argumente, `argCount` legt deren Anzahl fest (`-1` bedeutet variabel), und `flags` kann beispielsweise `SQLITE3_DETERMINISTIC` enthalten.
+Registers a scalar SQL function. `argCount = -1` allows variable arguments; `flags` may contain `SQLITE3_DETERMINISTIC`.
+
+- **Parameters:** `connection` owns the registration; `name` is the SQL name; `callback` implements it; `argCount` constrains arity; `flags` sets SQLite options.
+- **Returns:** The native registration result.
 
 ### sqlite_create_aggregate
 
 ```php
-sqlite_create_aggregate(
-    SQLiteProceduralConnection $connection,
-    string $name,
-    callable $stepCallback,
-    callable $finalCallback,
-    int $argCount = -1
-): bool
+sqlite_create_aggregate(SQLiteProceduralConnection $connection, string $name, callable $stepCallback, callable $finalCallback, int $argCount = -1): bool
 ```
 
-Registriert eine Aggregatfunktion. `stepCallback` verarbeitet jede Zeile und `finalCallback` erzeugt den Endwert. Die Callback-Signaturen entsprechen `SQLite3::createAggregate()`.
+Registers an aggregate. The callbacks follow `SQLite3::createAggregate()` semantics.
+
+- **Parameters:** `connection` owns the registration; `name` is the SQL name; `stepCallback` processes rows; `finalCallback` produces the result; `argCount` constrains arity.
+- **Returns:** The native registration result.
 
 ### sqlite_create_collation
 
@@ -769,7 +912,10 @@ Registriert eine Aggregatfunktion. `stepCallback` verarbeitet jede Zeile und `fi
 sqlite_create_collation(SQLiteProceduralConnection $connection, string $name, callable $callback): bool
 ```
 
-Registriert eine Sortierfunktion. `callback` erhält zwei Zeichenketten und muss einen Wert kleiner, gleich oder größer `0` zurückgeben.
+Registers a collation callback that compares two strings and returns an integer.
+
+- **Parameters:** `connection` owns the collation; `name` is used after `COLLATE`; `callback` compares two strings.
+- **Returns:** The native registration result.
 
 ### sqlite_set_authorizer
 
@@ -777,22 +923,22 @@ Registriert eine Sortierfunktion. `callback` erhält zwei Zeichenketten und muss
 sqlite_set_authorizer(SQLiteProceduralConnection $connection, ?callable $callback): bool
 ```
 
-Registriert einen SQLite-Authorizer oder entfernt ihn mit `null`. Der Callback muss einen der nativen Rückgabecodes `SQLite3::OK`, `SQLite3::DENY` oder `SQLite3::IGNORE` liefern.
+Registers an authorizer, or removes it with `null`. Return `SQLite3::OK`, `SQLite3::DENY`, or `SQLite3::IGNORE`.
+
+- **Parameters:** `connection` owns the authorizer; `callback` handles authorization events or `null` removes it.
+- **Returns:** The native registration result.
+- **Compatibility:** Reports an API error when the current PHP SQLite3 build lacks authorizer support.
 
 ### sqlite_open_blob
 
 ```php
-sqlite_open_blob(
-    SQLiteProceduralConnection $connection,
-    string $table,
-    string $column,
-    int $rowId,
-    string $database = 'main',
-    int $flags = SQLITE3_OPEN_READONLY
-): resource|false
+sqlite_open_blob(SQLiteProceduralConnection $connection, string $table, string $column, int $rowId, string $database = 'main', int $flags = SQLITE3_OPEN_READONLY): resource|false
 ```
 
-Öffnet eine BLOB-Spalte als Stream. `table`, `column` und `rowId` bestimmen die Zelle; `flags` ist `SQLITE3_OPEN_READONLY` oder `SQLITE3_OPEN_READWRITE`. Der Stream wird mit den normalen PHP-Streamfunktionen gelesen, geschrieben und geschlossen.
+Opens one BLOB cell as a PHP stream. `flags` is `SQLITE3_OPEN_READONLY` or `SQLITE3_OPEN_READWRITE`.
+
+- **Parameters:** `connection` is open; `table`, `column`, and `rowId` identify the cell; `database` selects the schema; `flags` selects access.
+- **Returns:** A PHP stream resource or `false` in non-strict error mode. Close the resource with `fclose()`.
 
 ### sqlite_load_extension
 
@@ -800,7 +946,11 @@ sqlite_open_blob(
 sqlite_load_extension(SQLiteProceduralConnection $connection, string $name): bool
 ```
 
-Lädt eine SQLite-Laufzeiterweiterung. Dies funktioniert nur, wenn PHP und SQLite das Laden von Erweiterungen erlauben und `sqlite3.extension_dir` passend konfiguriert ist. Erweiterungsnamen dürfen niemals ungeprüft aus Benutzereingaben stammen.
+Loads a trusted SQLite runtime extension when PHP and SQLite permit it. Never use untrusted names.
+
+- **Parameters:** `connection` is open; `name` identifies an extension allowed by `sqlite3.extension_dir`.
+- **Returns:** `true` on success or `false` in non-strict mode.
+- **Security:** Extension loading executes native code and must never use user input.
 
 ### sqlite_enable_extended_result_codes
 
@@ -808,9 +958,12 @@ Lädt eine SQLite-Laufzeiterweiterung. Dies funktioniert nur, wenn PHP und SQLit
 sqlite_enable_extended_result_codes(SQLiteProceduralConnection $connection, bool $enable = true): bool
 ```
 
-Aktiviert oder deaktiviert erweiterte SQLite-Fehlercodes für die Verbindung.
+Enables or disables extended SQLite result codes.
 
-## Versions- und Verbindungsinformationen
+- **Parameters:** `connection` is open; `enable` selects extended codes.
+- **Returns:** The native operation result. Unsupported PHP builds report an API error.
+
+## Version and connection information
 
 ### sqlite_client_info
 
@@ -818,7 +971,10 @@ Aktiviert oder deaktiviert erweiterte SQLite-Fehlercodes für die Verbindung.
 sqlite_client_info(): string
 ```
 
-Gibt Namen und Version dieser Kompatibilitätsbibliothek zurück, beispielsweise `sqlite-procedural/1.0.0`.
+Returns this library's name and version, such as `sqlite-procedural/1.0.0`.
+
+- **Parameters:** None.
+- **Returns:** A library identification string.
 
 ### sqlite_get_client_info
 
@@ -826,7 +982,10 @@ Gibt Namen und Version dieser Kompatibilitätsbibliothek zurück, beispielsweise
 sqlite_get_client_info(): string
 ```
 
-mysqli-kompatibler Alias von `sqlite_client_info()`.
+mysqli-compatible alias of `sqlite_client_info()`.
+
+- **Parameters:** None.
+- **Returns:** The same string as `sqlite_client_info()`.
 
 ### sqlite_client_version
 
@@ -834,7 +993,10 @@ mysqli-kompatibler Alias von `sqlite_client_info()`.
 sqlite_client_version(): int
 ```
 
-Gibt die numerische Bibliotheksversion im Format `Hauptversion * 10000 + Nebenversion * 100 + Patchversion` zurück. Version 1.0.0 entspricht `10000`.
+Returns the numeric library version. Version 1.0.0 is `10000`.
+
+- **Parameters:** None.
+- **Returns:** `major * 10000 + minor * 100 + patch`.
 
 ### sqlite_get_client_version
 
@@ -842,7 +1004,10 @@ Gibt die numerische Bibliotheksversion im Format `Hauptversion * 10000 + Nebenve
 sqlite_get_client_version(): int
 ```
 
-mysqli-kompatibler Alias von `sqlite_client_version()`.
+mysqli-compatible alias of `sqlite_client_version()`.
+
+- **Parameters:** None.
+- **Returns:** The same integer as `sqlite_client_version()`.
 
 ### sqlite_server_info
 
@@ -850,7 +1015,10 @@ mysqli-kompatibler Alias von `sqlite_client_version()`.
 sqlite_server_info(SQLiteProceduralConnection $connection): string
 ```
 
-Gibt die Versionszeichenkette der verwendeten SQLite-Bibliothek zurück. Das Verbindungshandle dient der mysqli-ähnlichen Signatur.
+Returns the linked SQLite library's version string.
+
+- **Parameters:** `connection` is accepted for mysqli-style consistency.
+- **Returns:** SQLite's `versionString`.
 
 ### sqlite_get_server_info
 
@@ -858,7 +1026,10 @@ Gibt die Versionszeichenkette der verwendeten SQLite-Bibliothek zurück. Das Ver
 sqlite_get_server_info(SQLiteProceduralConnection $connection): string
 ```
 
-mysqli-kompatibler Alias von `sqlite_server_info()`.
+mysqli-compatible alias of `sqlite_server_info()`.
+
+- **Parameters:** `connection` is an open connection handle.
+- **Returns:** The same string as `sqlite_server_info()`.
 
 ### sqlite_server_version
 
@@ -866,7 +1037,10 @@ mysqli-kompatibler Alias von `sqlite_server_info()`.
 sqlite_server_version(SQLiteProceduralConnection $connection): int
 ```
 
-Gibt die numerische Version der verwendeten SQLite-Bibliothek zurück.
+Returns the linked SQLite library's numeric version.
+
+- **Parameters:** `connection` is accepted for mysqli-style consistency.
+- **Returns:** SQLite's numeric `versionNumber`.
 
 ### sqlite_get_server_version
 
@@ -874,7 +1048,10 @@ Gibt die numerische Version der verwendeten SQLite-Bibliothek zurück.
 sqlite_get_server_version(SQLiteProceduralConnection $connection): int
 ```
 
-mysqli-kompatibler Alias von `sqlite_server_version()`.
+mysqli-compatible alias of `sqlite_server_version()`.
+
+- **Parameters:** `connection` is an open connection handle.
+- **Returns:** The same integer as `sqlite_server_version()`.
 
 ### sqlite_character_set_name
 
@@ -882,7 +1059,10 @@ mysqli-kompatibler Alias von `sqlite_server_version()`.
 sqlite_character_set_name(SQLiteProceduralConnection $connection): string
 ```
 
-Gibt immer `UTF-8` zurück.
+Returns `UTF-8`.
+
+- **Parameters:** `connection` is accepted for mysqli-style consistency.
+- **Returns:** The literal string `UTF-8`.
 
 ### sqlite_get_charset
 
@@ -890,7 +1070,10 @@ Gibt immer `UTF-8` zurück.
 sqlite_get_charset(SQLiteProceduralConnection $connection): object
 ```
 
-Gibt ein mysqli-ähnliches Zeichensatzobjekt zurück. Es enthält unter anderem `charset = 'UTF-8'`, `collation = 'BINARY'`, `min_length = 1` und `max_length = 4`.
+Returns mysqli-style UTF-8 charset metadata.
+
+- **Parameters:** `connection` is an open handle.
+- **Returns:** An object containing `charset`, `collation`, `min_length`, `max_length`, and related compatibility fields.
 
 ### sqlite_set_charset
 
@@ -898,7 +1081,10 @@ Gibt ein mysqli-ähnliches Zeichensatzobjekt zurück. Es enthält unter anderem 
 sqlite_set_charset(SQLiteProceduralConnection $connection, string $charset): bool
 ```
 
-Akzeptiert `utf8`, `utf-8` und `utf_8` und liefert dann `true`. Andere Werte erzeugen einen Fehler, weil SQLite den Verbindungszeichensatz nicht wie MySQL umschalten kann.
+Accepts `utf8`, `utf-8`, or `utf_8`. Other values report an error because SQLite cannot switch connection charset.
+
+- **Parameters:** `connection` is open; `charset` is the requested encoding name.
+- **Returns:** `true` for a UTF-8 spelling or `false` in non-strict mode for unsupported values.
 
 ### sqlite_thread_id
 
@@ -906,38 +1092,34 @@ Akzeptiert `utf8`, `utf-8` und `utf_8` und liefert dann `true`. Andere Werte erz
 sqlite_thread_id(SQLiteProceduralConnection $connection): int
 ```
 
-Gibt immer `0` zurück, weil SQLite eingebettet arbeitet und keine Server-Thread-ID besitzt.
+Returns `0` because embedded SQLite has no server thread ID.
 
-## Fehlerbehandlung – Beispiel
+- **Parameters:** `connection` is accepted for mysqli-style consistency.
+- **Returns:** Always `0`.
+
+## Error handling
 
 ```php
 sqlite_report(SQLITE_REPORT_ERROR | SQLITE_REPORT_STRICT);
 
 try {
     $db = sqlite_connect(__DIR__ . '/app.sqlite');
-    sqlite_query($db, 'SELECT * FROM nicht_vorhanden');
+    sqlite_query($db, 'SELECT * FROM missing_table');
 } catch (SQLiteProceduralException $error) {
     echo $error->getCode() . ': ' . $error->getMessage();
 }
 ```
 
-Für Code, der Fehler ausdrücklich über Rückgabewerte auswertet:
+Use `sqlite_report(SQLITE_REPORT_OFF)` to inspect `false`, `sqlite_errno()`, and `sqlite_error()` instead.
 
-```php
-sqlite_report(SQLITE_REPORT_OFF);
+## Security
 
-$db = sqlite_connect(__DIR__ . '/app.sqlite');
-$result = sqlite_query($db, 'INVALID SQL');
+- Bind values with prepared statements; select identifiers through a fixed allowlist.
+- Store database files outside publicly accessible directories.
+- Load only fixed, trusted SQLite extensions.
+- Keep write transactions short and set an appropriate busy timeout.
+- Close BLOB streams and handles after use.
 
-if ($result === false) {
-    printf("SQLite-Fehler %d: %s\n", sqlite_errno($db), sqlite_error($db));
-}
-```
+## Repository
 
-## Sicherheitshinweise
-
-- SQL-Werte über Prepared Statements binden; Tabellen- und Spaltennamen über eine feste Allowlist auswählen.
-- Datenbankdateien außerhalb öffentlich erreichbarer Webverzeichnisse speichern.
-- `sqlite_load_extension()` nur mit fest konfigurierten, vertrauenswürdigen Erweiterungen verwenden.
-- Für konkurrierende Schreibzugriffe einen sinnvollen `sqlite_busy_timeout()` setzen und Transaktionen kurz halten.
-- BLOB-Streams und alle Handles nach Gebrauch schließen.
+Source, documentation, and issues: [github.com/dersnyke/php-procedural-sqlite](https://github.com/dersnyke/php-procedural-sqlite)

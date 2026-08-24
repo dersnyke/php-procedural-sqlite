@@ -1,11 +1,16 @@
 <?php
 
 /**
- * Minimal procedural, mysqli-inspired API for PHP's SQLite3 extension.
+ * php-procedural-sqlite
+ * =====================
+ * Lite Edition — the essential procedural API for PHP's SQLite3 extension.
  *
- * This is the standalone Lite edition. Do not include it together with
- * sqlite.php because both editions intentionally provide the same function
- * names.
+ * Project:       https://github.com/dersnyke/php-procedural-sqlite
+ * Documentation: https://github.com/dersnyke/php-procedural-sqlite/blob/main/README-lite.md
+ * Edition:       Lite (32 public sqlite_* functions)
+ *
+ * This is a standalone edition. Do not include it together with sqlite.php;
+ * both editions intentionally provide the same function names.
  */
 
 if (!defined('SQLITE_PROCEDURAL_LITE_VERSION')) {

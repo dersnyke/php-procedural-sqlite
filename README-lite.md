@@ -6,6 +6,14 @@
 
 Der Anwendungscode arbeitet ausschließlich mit Funktionen wie `sqlite_connect()`, `sqlite_query()`, `sqlite_fetch_assoc()` und `sqlite_stmt_execute()`. Intern verwendet die Bibliothek PHPs `SQLite3`-Erweiterung und puffert Ergebnismengen, damit mysqli-ähnliche Funktionen wie `sqlite_num_rows()` möglich sind.
 
+## KI-Attribution
+
+> **Dieses Projekt ist zu 100 % KI-generiert.**
+
+Der gesamte PHP-Quellcode und die vollständige Dokumentation dieses Repositorys wurden mit [OpenAI Codex](https://developers.openai.com/codex), einem KI-Coding-Agenten von OpenAI, erzeugt. Die Anforderungen und die fachliche Steuerung wurden von einem Menschen vorgegeben; die daraus entstandenen Projektdateien wurden vollständig durch die KI generiert.
+
+*All source code and documentation in this repository were generated entirely with OpenAI Codex.*
+
 ## Anforderungen
 
 - PHP 8.2 oder neuer
